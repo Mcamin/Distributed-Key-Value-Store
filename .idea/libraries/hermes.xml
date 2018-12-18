@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="hermes">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/hermes.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
