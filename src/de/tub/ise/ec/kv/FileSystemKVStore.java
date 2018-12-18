@@ -40,9 +40,11 @@ public class FileSystemKVStore implements KeyValueInterface {
 
 	/**
 	 * returns a list of all keys
+	 * throws null pointer exception in case elements does not exist
 	 */
 	@Override
 	public List<String> getKeys() {
+		try{
 		List<String> result = new ArrayList<>();
 
 		File dir = new File(rootDir);
@@ -50,7 +52,8 @@ public class FileSystemKVStore implements KeyValueInterface {
 		for (File f : files) {
 			result.add(f.getName());
 		}
-		return result;
+		return result;}
+		catch (Exception e){return null;}
 	}
 
 	/**

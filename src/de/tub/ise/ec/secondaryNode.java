@@ -41,17 +41,17 @@ public class secondaryNode implements IRequestHandler {
     public Response handleRequest(Request request) {
         //get request items
         List<Serializable> commands = request.getItems();
-        List<String> key=store.getKeys();
+        List<String> key=null;
         Command c = (Command) commands.get(0);
 
             //Handle Get Operation
             if(c.getOperation().equals(GET)) {
-                try {
+                try {key=store.getKeys();
 
                     //TODO:FIX nullpointerexception in case DB Is empty
                     // * Case file with key does not exist response :GET
 
-                        if(key.contains(c.getKey())){
+                        if(key!=null && key.contains(c.getKey())){
                             c.setValue((String) store.getValue(c.getKey()));
                             c.setResponseMsg("Slave: Item successfully  retrieved.\n");}
                         else{

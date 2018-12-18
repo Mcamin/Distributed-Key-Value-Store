@@ -41,76 +41,78 @@ public class primaryNode implements IRequestHandler {
 
         //get request items
         List<Serializable> commands = request.getItems();
-        List<String> key=store.getKeys();
+        List<String> key=null;
         Command c = (Command) commands.get(0);
         // Initiate masterClient
         Client masterClient = new Client("18.197.152.162",80);
 
         try {
-            //TODO:FIX nullpointerexception in case DB Is empty
-            // * Case file with key does not exist response :GET /DELETE / UPDATE
-            // * Case file exists :ADD
 
+            key=store.getKeys();
 
-        //check the sending mode
+            //check the sending mode
             if(c.getMode().equals(ASYNC) ||c.getMode().equals(SYNC)){
                 //Handle operation
                 switch (c.getOperation())
                 {
                     case  GET:
 
-                     if(key.contains(c.getKey())){
+                     if(key!=null && key.contains(c.getKey())){
                      c.setValue((String) store.getValue(c.getKey()));
                      c.setResponseMsg("Master: Item successfully retrieved.\n");}
                      else{
-                         c.setResponseMsg("Master: An Item with key"+c.getKey()+" does not exist.\n");
+                         c.setResponseMsg("Master: An Item with key "+c.getKey()+" does not exist.\n");
                      }
                  break;
                  case  ADD:
-
-                         store.store(c.getKey(),c.getValue());
+                     if(key!=null && key.contains(c.getKey())){
+                         c.setResponseMsg("Master: An Item with key "+c.getKey()+" already exist.\n");
+                     }else
+                         {
+                         //initiate client request
+                         masterClient.createRequest(c, "secondaryNode", "master");
+                         //send the request
+                         if (c.getMode().equals(ASYNC)) {
+                             System.out.println("Sending the request in Async Mode");
+                             masterClient.sendReqMasterAsync(store);
+                         } else {
+                             System.out.println("Sending the request in Sync Mode");
+                             c = masterClient.sendReqMaster(store);
+                         }
+                         store.store(c.getKey(), c.getValue());
                          Date date = new Date();
                          //save Commit timestamp and set response message
                          c.setMasterTimestamp(date);
                          c.setResponseMsg("Master: Item successfully added.\n");
-
-                         //initiate client request
-                         masterClient.createRequest(c,"secondaryNode","master");
-                         //send the request
-                         if(c.getMode().equals(ASYNC)){
-                             System.out.println("Sending the request in Async Mode");
-                             masterClient.sendReqMasterAsync();
-                         }else{    System.out.println("Sending the request in Sync Mode");
-                             c=masterClient.sendReqMaster();
                          }
-
                          break;
                      case DEL:
 
 
-                    if(key.contains(c.getKey())){
-                    store.delete(c.getKey());
-                    Date date1 = new Date();
-                    //save Commit timestamp and set response message
-                    c.setMasterTimestamp(date1);
-                    c.setResponseMsg("Master: Item successfully deleted.\n");
-                    //initiate client request
-                    masterClient.createRequest(c,"secondaryNode","master");
+                    if(key!=null && key.contains(c.getKey())){
+                        store.delete(c.getKey());
+                        Date date1 = new Date();
+                        //save Commit timestamp and set response message
+                        c.setMasterTimestamp(date1);
+                        c.setResponseMsg("Master: Item successfully deleted.\n");
+                        //initiate client request
+                        masterClient.createRequest(c,"secondaryNode","master");
                     //send the request
                     if(c.getMode().equals(ASYNC)){
-                        masterClient.sendReqMasterAsync();
+                        masterClient.sendReqMasterAsync(store);
                     }else{
-                        c=masterClient.sendReqMaster();
-                    }}else{
+                        c=masterClient.sendReqMaster(store);
+                    }
+                    }
+                    else
+                        {
                         c.setResponseMsg("Master: The Element you are trying to delete does not exist.\n");
                     }
                 break;
                 case  SET:
-
-
-
-                    if(key.contains(c.getKey())){
+                    if(key!=null && key.contains(c.getKey())){
                     //Fix: could not overwrite the file with the new value using store method
+                    c.setOldValue((String)store.getValue(c.getKey()));
                     store.delete(c.getKey());
                     store.store(c.getKey(), c.getValue());
                     Date date2 = new Date();
@@ -121,9 +123,9 @@ public class primaryNode implements IRequestHandler {
                     masterClient.createRequest(c,"secondaryNode","master");
                     //send the request
                     if(c.getMode().equals(ASYNC)){
-                        masterClient.sendReqMasterAsync();
+                        masterClient.sendReqMasterAsync(store);
                     }else{
-                        c=masterClient.sendReqMaster();
+                        c=masterClient.sendReqMaster(store);
                     }
                     }else{
                         c.setResponseMsg("Master: The Element you are trying to update does not exist.\n");
@@ -140,8 +142,6 @@ public class primaryNode implements IRequestHandler {
 
         } catch (NullPointerException e) {
             c.setResponseMsg("Master: Null Pointer Somewhere\n");
-        } catch (InterruptedException e) {
-            e.printStackTrace();
         }
 
         return new Response(c.getResponseMsg(), true, request, c);

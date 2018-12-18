@@ -11,6 +11,7 @@ public class Command implements Serializable {
     private String mode;
     private Date slaveTimestamp;
     private Date masterTimestamp;
+    private String oldValue;
 
     /**
      * Create a Command to pass to the server (Create / Update)
@@ -89,6 +90,13 @@ public class Command implements Serializable {
     {return this.value;}
 
     /**
+     * value Getter
+     * @return oldValue : the old value of the item
+     */
+    public String getOldValue()
+    {return this.oldValue;}
+
+    /**
      * mode Getter
      * @return mode : the mode of the send request
      */
@@ -124,6 +132,12 @@ public class Command implements Serializable {
      */
     public void setValue(String value)
     { this.value=value;}
+    /**
+     * oldValue Setter
+     * @param oldValue : the oldValue of the item to add / modify
+     */
+    public void setOldValue(String oldValue)
+    { this.oldValue=oldValue;}
 
     /**
      * responseMsg Setter

@@ -1,5 +1,6 @@
 package de.tub.ise.ec;
 
+import de.tub.ise.ec.kv.KeyValueInterface;
 import de.tub.ise.hermes.Request;
 import de.tub.ise.hermes.Response;
 import de.tub.ise.hermes.Sender;
@@ -14,6 +15,9 @@ public class Client {
     private Response res;
     private long Latency;
     private long  Staleness;
+    private static final String ADD = "create";
+    private static final String DEL = "delete";
+    private static final String SET = "update";
 
     //Delimiter used in CSV file
     private static final String COMMA_DELIMITER = ",";
@@ -57,21 +61,24 @@ public class Client {
         StopWatch stopWatch = new StopWatch();
         stopWatch.start();
         res = sender.sendMessage(req, 5000);
-        stopWatch.stop();
-        Latency=stopWatch.getTime();
-        Command c = (Command)res.getItems().get(0);
-        if(c.getMode().equals("Sync")){
-            if(c.getSlaveTimestamp()!=null  && c.getMasterTimestamp()!=null )
-            Staleness =c.getSlaveTimestamp().getTime()-c.getMasterTimestamp().getTime();
-            String fileName = ".//Sync_Benchmark.csv";
-            writeCsvFile(fileName);
-        }else{
-            String fileName = ".//Async_latency.csv";
-            writeCsvFile(fileName);
+        if(!res.responseCode()) System.out.println("Response: Failed to connect to server. "+res.getResponseMessage());
+        else {
+            stopWatch.stop();
+            Latency = stopWatch.getTime();
+            Command c = (Command) res.getItems().get(0);
+            if (c.getMode().equals("Sync")) {
+                if (c.getSlaveTimestamp() != null && c.getMasterTimestamp() != null)
+                    Staleness = c.getSlaveTimestamp().getTime() - c.getMasterTimestamp().getTime();
+                String fileName = ".//Sync_Benchmark.csv";
+                writeCsvFile(fileName);
+            } else {
+                String fileName = ".//Async_latency.csv";
+                writeCsvFile(fileName);
+            }
+            if (c.getOperation().equals("read"))
+                System.out.println("Response:\n" + c.getResponseMsg() + ": " + c.getValue());
+            else System.out.println("Response:\n" + c.getResponseMsg());
         }
-        if(c.getOperation().equals("read")) System.out.println("Response:\n"+c.getResponseMsg()+": "+c.getValue());
-        else System.out.println("Response:\n"+c.getResponseMsg());
-
     }
 
     /**
@@ -79,9 +86,15 @@ public class Client {
      *  serializable object from the response
      * @return Serializable object Command
      */
-    public Command sendReqMaster() {
+    public Command sendReqMaster(KeyValueInterface store) {
+        Command c=null;
         res = sender.sendMessage(req, 5000);
-        Command c = (Command)res.getItems().get(0);
+        if(res.responseCode())
+        {c = (Command)res.getItems().get(0);
+        }
+        else{revert(req,store);
+          c.setResponseMsg("Failed to execute the operation");
+        }
         return c;
     }
 
@@ -89,22 +102,46 @@ public class Client {
      *  Send the request asynchronously
      * @throws InterruptedException : Interrupted Exception
      */
-    public void sendReqMasterAsync() throws InterruptedException {
+    public void sendReqMasterAsync(KeyValueInterface store) {
 
         AsyncRequest echoAsyncCallback = new AsyncRequest();
         boolean received = sender.sendMessageAsync(req, echoAsyncCallback);
 
         while (true) {
-            Thread.sleep(10);
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             if (echoAsyncCallback.getResponse() != null) break;
         }
+        if(echoAsyncCallback.getResponse().responseCode()){
         Command c = (Command)echoAsyncCallback.getResponse().getItems().get(0);
          Staleness =c.getSlaveTimestamp().getTime()-c.getMasterTimestamp().getTime();
          String fileName = ".//Async_Staleness.csv";
-         writeCsvFile(fileName);
+         writeCsvFile(fileName);}
+         else{
+             revert(req,store);
+        }
+    }
 
-
-
+    /**
+     * Revert the operation executed on master
+     */
+    public void revert(Request req,KeyValueInterface store){
+        Command c =(Command) req.getItems().get(0);
+        switch (c.getOperation()){
+            case  ADD:
+                store.store(c.getKey(),c.getValue());
+                break;
+            case DEL:
+                store.delete(c.getKey());
+                break;
+            case  SET:
+                store.delete(c.getKey());
+                store.store(c.getKey(), c.getOldValue());
+                break;
+        }
     }
 
     /**
