@@ -1,4 +1,4 @@
-Distributed Key-Value Store Benchmark
+<b>Distributed Key-Value Store Benchmark</b>
 
 1. open the project using your favorite IDE
 
@@ -10,5 +10,6 @@ Distributed Key-Value Store Benchmark
 
 5. execute the ClientCLI to test the CRUD functions or the benchmark to execute the benchmark tests.
 
-References
+References:
+
 [Hermes middleware](https://github.com/dbermbach/hermes)
